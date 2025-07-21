@@ -9,4 +9,4 @@ typechain-types
 cache
 artifacts
 
-contracts/ignition/deployments
+ignition/deployments
