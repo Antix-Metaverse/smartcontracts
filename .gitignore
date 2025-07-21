@@ -8,3 +8,5 @@ settings.json
 typechain-types
 cache
 artifacts
+
+contracts/ignition/deployments
