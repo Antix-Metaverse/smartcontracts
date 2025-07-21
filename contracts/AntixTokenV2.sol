@@ -9,20 +9,30 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import "@openzeppelin/contracts/utils/StorageSlot.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 /**
  * @title Indx
  * @dev Implementation of a capped, burnable, permit-enabled, and voting-enabled ERC20 token.
  * Inherits from Initializable and several OpenZeppelin upgradeable token contracts.
  */
-contract Indx is
+contract IndxV2 is
     Initializable,
     ERC20Upgradeable,
     ERC20CappedUpgradeable,
     ERC20BurnableUpgradeable,
     ERC20PermitUpgradeable,
-    ERC20VotesUpgradeable
+    ERC20VotesUpgradeable,
+    AccessControlUpgradeable
 {
+    address internal s_ccipAdmin;
+
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+
+    event CCIPAdminTransferred(
+        address indexed previousAdmin,
+        address indexed newAdmin
+    );
     /**
      * @dev Constructor that disables initializers to prevent the implementation contract from being used.
      * This is required by OpenZeppelin's upgradeable contract pattern.
@@ -52,7 +62,7 @@ contract Indx is
      * @return The version string of the contract.
      */
     function version() external view virtual returns (string memory) {
-        return "1";
+        return "2";
     }
 
     /**
@@ -135,5 +145,53 @@ contract Indx is
         returns (uint256)
     {
         return super.nonces(owner);
+    }
+
+    function initializeV2(address owner) public reinitializer(2) {
+        __AccessControl_init();
+        _grantRole(0x00, owner);
+    }
+
+    function mint(
+        address account,
+        uint256 amount
+    ) external onlyRole(MINTER_ROLE) {
+        require(account != address(this), "InvalidRecipient");
+        require(
+            cap() == 0 || totalSupply() + amount <= cap(),
+            "MaxSupplyExceeded"
+        );
+        _mint(account, amount);
+    }
+
+    /// @notice grants both mint and burn roles to `burnAndMinter`.
+    /// @dev calls public functions so this function does not require
+    /// access controls. This is handled in the inner functions.
+    function grantMintRole(address burnAndMinter) external {
+        grantRole(MINTER_ROLE, burnAndMinter);
+        // grantRole(BURNER_ROLE, burnAndMinter);
+    }
+
+    /// @notice Returns the current CCIPAdmin
+    function getCCIPAdmin() external view returns (address) {
+        return s_ccipAdmin;
+    }
+
+    /// @notice Transfers the CCIPAdmin role to a new address
+    /// @dev only the owner can call this function, NOT the current ccipAdmin, and 1-step ownership transfer is used.
+    /// @param newAdmin The address to transfer the CCIPAdmin role to. Setting to address(0) is a valid way to revoke
+    /// the role
+    function setCCIPAdmin(
+        address newAdmin
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        address currentAdmin = s_ccipAdmin;
+
+        s_ccipAdmin = newAdmin;
+
+        emit CCIPAdminTransferred(currentAdmin, newAdmin);
+    }
+
+    function test() external pure returns (uint256) {
+        return 11;
     }
 }
