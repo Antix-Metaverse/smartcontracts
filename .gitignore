@@ -5,5 +5,8 @@ coverage.json
 settings.json
 
 # Hardhat files
+typechain-types
 cache
 artifacts
+
+ignition/deployments
